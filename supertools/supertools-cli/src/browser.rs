@@ -35,7 +35,10 @@ mod tests {
         unsafe {
             std::env::remove_var("SUPERTOOLS_REMOTE");
         }
-        assert!(res.is_ok(), "open_browser should succeed in remote mode by printing the URL");
+        assert!(
+            res.is_ok(),
+            "open_browser should succeed in remote mode by printing the URL"
+        );
     }
 
     #[test]
@@ -47,6 +50,9 @@ mod tests {
         unsafe {
             std::env::remove_var("SUPERTOOLS_REMOTE");
         }
-        assert!(res.is_ok(), "open_browser should succeed in remote mode when variable is '1'");
+        assert!(
+            res.is_ok(),
+            "open_browser should succeed in remote mode when variable is '1'"
+        );
     }
 }

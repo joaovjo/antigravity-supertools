@@ -1,6 +1,6 @@
+use futures_util::{SinkExt, StreamExt};
 use std::fs;
 use std::path::PathBuf;
-use futures_util::{SinkExt, StreamExt};
 use supertools_cli::protocol;
 use supertools_cli::server;
 
@@ -15,7 +15,11 @@ async fn test_integration_claude_flow() {
 
     // 1. Parse input
     let parsed_input = protocol::parse_input(input_json).expect("Failed to parse Claude event");
-    let plan = parsed_input.tool_input.as_ref().and_then(|t| t.plan.as_ref()).expect("Plan missing");
+    let plan = parsed_input
+        .tool_input
+        .as_ref()
+        .and_then(|t| t.plan.as_ref())
+        .expect("Plan missing");
     let perm_mode = parsed_input.permission_mode.clone();
 
     // 2. Start server
@@ -47,7 +51,10 @@ async fn test_integration_claude_flow() {
         approved: true,
         feedback: None,
     };
-    ws_stream.send(tokio_tungstenite::tungstenite::Message::Text(serde_json::to_string(&decision).unwrap().into()))
+    ws_stream
+        .send(tokio_tungstenite::tungstenite::Message::Text(
+            serde_json::to_string(&decision).unwrap().into(),
+        ))
         .await
         .unwrap();
 
@@ -58,7 +65,7 @@ async fn test_integration_claude_flow() {
     // 7. Format output
     let output = protocol::build_claude_approval(perm_mode);
     let output_json = serde_json::to_string(&output).unwrap();
-    
+
     // Assert correct Claude structure
     assert!(output_json.contains("PermissionRequest"));
     assert!(output_json.contains("allow"));
@@ -91,14 +98,22 @@ async fn test_integration_gemini_flow() {
 
     // 1. Parse input
     let parsed_input = protocol::parse_input(&input_json).expect("Failed to parse Gemini event");
-    
+
     // Resolve plan path: dirname(dirname(transcript_path)) / session_id / plans / plan_filename
     let transcript_path = PathBuf::from(parsed_input.transcript_path.as_ref().unwrap());
     let project_temp_dir = transcript_path.parent().unwrap().parent().unwrap();
     let plan_filepath = project_temp_dir
         .join(parsed_input.session_id.as_ref().unwrap())
         .join("plans")
-        .join(parsed_input.tool_input.as_ref().unwrap().plan_filename.as_ref().unwrap());
+        .join(
+            parsed_input
+                .tool_input
+                .as_ref()
+                .unwrap()
+                .plan_filename
+                .as_ref()
+                .unwrap(),
+        );
 
     let plan_content = fs::read_to_string(plan_filepath).unwrap();
     assert_eq!(plan_content, "Gemini plan content");
@@ -132,19 +147,25 @@ async fn test_integration_gemini_flow() {
         approved: false,
         feedback: Some("Needs more tests".to_string()),
     };
-    ws_stream.send(tokio_tungstenite::tungstenite::Message::Text(serde_json::to_string(&decision).unwrap().into()))
+    ws_stream
+        .send(tokio_tungstenite::tungstenite::Message::Text(
+            serde_json::to_string(&decision).unwrap().into(),
+        ))
         .await
         .unwrap();
 
     // 6. Await server output
     let decision_result = server_handle.await.expect("Server handle failed");
     assert_eq!(decision_result.approved, false);
-    assert_eq!(decision_result.feedback, Some("Needs more tests".to_string()));
+    assert_eq!(
+        decision_result.feedback,
+        Some("Needs more tests".to_string())
+    );
 
     // 7. Format output
     let output = protocol::build_gemini_denial("Needs more tests".to_string());
     let output_json = serde_json::to_string(&output).unwrap();
-    
+
     // Assert correct Gemini structure
     assert!(output_json.contains("deny"));
     assert!(output_json.contains("Needs more tests"));

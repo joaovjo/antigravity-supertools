@@ -67,7 +67,9 @@ async fn serve_asset(axum::extract::Path(path): axum::extract::Path<String>) -> 
     match Assets::get(&path) {
         Some(file) => {
             let bytes = file.data.to_vec();
-            let mime_type = mime_guess::from_path(&path).first_or_octet_stream().to_string();
+            let mime_type = mime_guess::from_path(&path)
+                .first_or_octet_stream()
+                .to_string();
             Response::builder()
                 .status(StatusCode::OK)
                 .header(header::CONTENT_TYPE, mime_type)

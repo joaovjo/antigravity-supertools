@@ -1,0 +1,143 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Test and Validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache Cargo Dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            supertools/target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install Trunk
+        run: |
+          wget -qO- https://github.com/trunk-rs/trunk/releases/download/v0.21.14/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf-
+          sudo mv trunk /usr/local/bin/
+
+      - name: Build Leptos UI
+        working-directory: supertools/supertools-ui
+        run: trunk build --release
+
+      - name: Run Workspace Tests
+        working-directory: supertools
+        run: cargo test --workspace
+
+  build-release:
+    name: Build & Release Binaries
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            artifact_name: supertools-linux-x86_64
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            artifact_name: supertools-macos-x86_64
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            artifact_name: supertools-macos-aarch64
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            artifact_name: supertools-windows-x86_64.exe
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown, ${{ matrix.target }}
+
+      - name: Install Trunk (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            wget -qO- https://github.com/trunk-rs/trunk/releases/download/v0.21.14/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf-
+          else
+            wget -qO- https://github.com/trunk-rs/trunk/releases/download/v0.21.14/trunk-x86_64-apple-darwin.tar.gz | tar -xzf-
+          fi
+          sudo mv trunk /usr/local/bin/
+
+      - name: Install Trunk (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri https://github.com/trunk-rs/trunk/releases/download/v0.21.14/trunk-x86_64-pc-windows-msvc.zip -OutFile trunk.zip
+          Expand-Archive -Path trunk.zip -DestinationPath .
+          Move-Item -Path trunk.exe -Destination C:\Windows\System32\
+
+      - name: Build Leptos UI
+        working-directory: supertools/supertools-ui
+        run: trunk build --release
+
+      - name: Build CLI Binary
+        working-directory: supertools
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Rename Artifact
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            cp supertools/target/${{ matrix.target }}/release/supertools-cli.exe ${{ matrix.artifact_name }}
+          else
+            cp supertools/target/${{ matrix.target }}/release/supertools-cli ${{ matrix.artifact_name }}
+          fi
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.artifact_name }}
+
+  publish-release:
+    name: Publish Github Release
+    needs: build-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/supertools-linux-x86_64/supertools-linux-x86_64
+            artifacts/supertools-macos-x86_64/supertools-macos-x86_64
+            artifacts/supertools-macos-aarch64/supertools-macos-aarch64
+            artifacts/supertools-windows-x86_64.exe/supertools-windows-x86_64.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

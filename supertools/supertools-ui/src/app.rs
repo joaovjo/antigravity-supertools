@@ -1,9 +1,9 @@
-use leptos::*;
-use gloo_net::websocket::futures::WebSocket;
-use gloo_net::websocket::Message;
-use futures::{SinkExt, StreamExt};
-use serde::{Deserialize, Serialize};
 use crate::components::plan_review::PlanReview;
+use futures::{SinkExt, StreamExt};
+use gloo_net::websocket::Message;
+use gloo_net::websocket::futures::WebSocket;
+use leptos::*;
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(tag = "type", content = "data")]
@@ -27,7 +27,7 @@ pub fn App() -> impl IntoView {
     let (feedback, set_feedback) = create_signal(String::new());
     let (session_closed, set_session_closed) = create_signal(false);
     let (error_msg, set_error_msg) = create_signal(Option::<String>::None);
-    
+
     // WS connection sender resource/signal
     let (ws_sender, set_ws_sender) = create_signal(None);
 
@@ -37,10 +37,10 @@ pub fn App() -> impl IntoView {
         let location = window.location();
         let protocol = location.protocol().expect("failed to get protocol");
         let host = location.host().expect("failed to get host");
-        
+
         let ws_protocol = if protocol == "https:" { "wss:" } else { "ws:" };
         let ws_url = format!("{}//{}/ws", ws_protocol, host);
-        
+
         let ws = match WebSocket::open(&ws_url) {
             Ok(ws) => ws,
             Err(e) => {
@@ -51,7 +51,7 @@ pub fn App() -> impl IntoView {
 
         let (mut write, mut read) = ws.split();
         let (tx, mut rx) = futures::channel::mpsc::unbounded::<Message>();
-        
+
         // Store the sender in our state (which is Clone!)
         set_ws_sender.set(Some(tx));
 
@@ -67,7 +67,9 @@ pub fn App() -> impl IntoView {
             while let Some(msg_result) = read.next().await {
                 match msg_result {
                     Ok(Message::Text(text)) => {
-                        if let Ok(ServerMessage::ReviewData { content, mode }) = serde_json::from_str::<ServerMessage>(&text) {
+                        if let Ok(ServerMessage::ReviewData { content, mode }) =
+                            serde_json::from_str::<ServerMessage>(&text)
+                        {
                             set_content.set(content);
                             set_mode.set(mode);
                         }
@@ -140,6 +142,16 @@ pub fn App() -> impl IntoView {
                             </p>
                         </div>
                     }.into_view()
+                } else if mode.get() == "review" || mode.get() == "code" {
+                    let diffs_parsed = serde_json::from_str::<Vec<crate::diff_parser::FileDiff>>(&content.get()).unwrap_or_default();
+                    view! {
+                        <crate::components::code_review::CodeReview
+                            diffs=diffs_parsed
+                            feedback=feedback.into()
+                            set_feedback=set_feedback
+                            on_submit=Callback::new(move |approved| send_decision(approved))
+                        />
+                    }.into_view()
                 } else {
                     view! {
                         <div class="review-workspace">
@@ -162,25 +174,25 @@ pub fn App() -> impl IntoView {
                                     <p class="text-secondary" style="font-size: 14px; margin-bottom: 8px;">
                                         "Add annotations or request changes below, or click Approve to proceed immediately."
                                     </p>
-                                    
-                                    <textarea 
-                                        class="text-area" 
+
+                                    <textarea
+                                        class="text-area"
                                         placeholder="Add change requests or feedback notes here..."
                                         prop:value=feedback
                                         on:input=move |ev| {
                                             set_feedback.set(event_target_value(&ev));
                                         }
                                     />
-                                    
-                                    <button 
-                                        class="button button-success" 
+
+                                    <button
+                                        class="button button-success"
                                         on:click=move |_| send_decision(true)
                                     >
                                         "Approve Plan"
                                     </button>
-                                    
-                                    <button 
-                                        class="button button-danger" 
+
+                                    <button
+                                        class="button button-danger"
                                         on:click=move |_| send_decision(false)
                                     >
                                         "Request Changes"
