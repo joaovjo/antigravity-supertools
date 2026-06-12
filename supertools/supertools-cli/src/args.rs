@@ -73,7 +73,11 @@ mod tests {
 
     #[test]
     fn test_parse_review_with_url() {
-        let args = vec!["supertools", "review", "https://github.com/test/repo/pull/1"];
+        let args = vec![
+            "supertools",
+            "review",
+            "https://github.com/test/repo/pull/1",
+        ];
         let cli = parse_from(args).unwrap();
         assert_eq!(
             cli.subcommand,

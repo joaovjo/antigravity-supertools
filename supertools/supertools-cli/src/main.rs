@@ -1,6 +1,5 @@
 use clap::Parser;
-
-pub mod args;
+use supertools_cli::args;
 
 #[tokio::main]
 async fn main() {
