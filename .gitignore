@@ -1,0 +1,24 @@
+# Rust
+/supertools/target/
+**/*.rs.bk
+*.pdb
+
+# WASM build artifacts
+/supertools/supertools-ui/pkg/
+/supertools/supertools-ui/dist/
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+.env.local

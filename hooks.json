@@ -1,0 +1,26 @@
+{
+  "PreToolUse": [
+    {
+      "matcher": "EnterPlanMode",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "supertools improve-context",
+          "timeout": 5
+        }
+      ]
+    }
+  ],
+  "PermissionRequest": [
+    {
+      "matcher": "ExitPlanMode",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "supertools",
+          "timeout": 345600
+        }
+      ]
+    }
+  ]
+}

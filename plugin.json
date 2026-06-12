@@ -1,0 +1,18 @@
+{
+  "name": "antigravity-supertools",
+  "version": "0.1.0",
+  "description": "Unified engineering toolkit for Antigravity CLI — interactive plan review, code review, annotations, TDD, diagnostics, grilling sessions, and 20+ productivity skills.",
+  "author": {
+    "name": "joaovjo"
+  },
+  "license": "MIT OR Apache-2.0",
+  "keywords": [
+    "plan-review",
+    "code-review",
+    "annotation",
+    "tdd",
+    "engineering",
+    "productivity",
+    "skills"
+  ]
+}
