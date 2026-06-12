@@ -16,3 +16,4 @@ open = "5"
 rust-embed = { version = "8" }
 futures-util = "0.3"
 tokio-tungstenite = "0.24"
+mime_guess = "2.0"

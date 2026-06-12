@@ -35,7 +35,7 @@ pub struct DecisionResult {
 }
 
 #[derive(rust_embed::RustEmbed)]
-#[folder = "static/"]
+#[folder = "../supertools-ui/dist/"]
 struct Assets;
 
 #[derive(Clone)]
@@ -53,6 +53,24 @@ async fn serve_index() -> impl IntoResponse {
             Response::builder()
                 .status(StatusCode::OK)
                 .header(header::CONTENT_TYPE, "text/html")
+                .body(axum::body::Body::from(bytes))
+                .unwrap()
+        }
+        None => Response::builder()
+            .status(StatusCode::NOT_FOUND)
+            .body(axum::body::Body::from("Not Found"))
+            .unwrap(),
+    }
+}
+
+async fn serve_asset(axum::extract::Path(path): axum::extract::Path<String>) -> impl IntoResponse {
+    match Assets::get(&path) {
+        Some(file) => {
+            let bytes = file.data.to_vec();
+            let mime_type = mime_guess::from_path(&path).first_or_octet_stream().to_string();
+            Response::builder()
+                .status(StatusCode::OK)
+                .header(header::CONTENT_TYPE, mime_type)
                 .body(axum::body::Body::from(bytes))
                 .unwrap()
         }
@@ -146,6 +164,7 @@ pub async fn start_server(
         .route("/", get(serve_index))
         .route("/index.html", get(serve_index))
         .route("/ws", get(ws_handler))
+        .route("/*path", get(serve_asset))
         .with_state(state);
 
     let handle = tokio::spawn(async move {
